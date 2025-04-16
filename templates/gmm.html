@@ -1,0 +1,89 @@
+{% extends "layout.html" %}
+{% block title %}Аналіз GMM{% endblock %}
+{% block content %}
+<h2>🧪 Запуск GMM-аналізу</h2>
+<p>Ця сторінка дозволяє виконати кластеризацію та виявлення аномалій за допомогою Gaussian Mixture Model.</p>
+
+<form id="gmm-form" method="POST" action="/run_gmm" enctype="multipart/form-data">
+  <div class="mb-3">
+    <label for="n_components" class="form-label">Кількість кластерів</label>
+    <input type="number" class="form-control" id="n_components" name="n_components" value="3" min="1">
+  </div>
+
+  <div class="mb-3">
+    <label for="max_iter" class="form-label">Максимальна кількість ітерацій</label>
+    <input type="number" class="form-control" id="max_iter" name="max_iter" value="100" min="1">
+  </div>
+
+  <div class="mb-3">
+    <label for="covariance_type" class="form-label">Тип коваріації</label>
+    <select class="form-select" id="covariance_type" name="covariance_type">
+      <option value="full" selected>full</option>
+      <option value="tied">tied</option>
+      <option value="diag">diag</option>
+      <option value="spherical">spherical</option>
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="gmm_impl" class="form-label">Вибір реалізації GMM</label>
+    <select class="form-select" id="gmm_impl" name="gmm_impl">
+      <option value="my-gmm">my-gmm</option>
+      <option value="sklearn-gmm">sklearn-gmm</option>
+    </select>
+  </div>
+
+  <div class="mb-3">
+    <label for="file" class="form-label">Завантажити CSV-файл (необов’язково)</label>
+    <input class="form-control" type="file" id="file" name="file" accept=".csv">
+  </div>
+
+  <input type="hidden" name="selected_file" id="selected_file">
+
+  <button type="submit" class="btn btn-success">🔁 Запустити GMM</button>
+</form>
+
+<div id="loading" style="display: none;" class="mt-3 alert alert-info">
+  🔄 Аналіз виконується... Зачекайте, будь ласка.
+</div>
+
+<hr>
+
+<h4>📂 Або оберіть наявний CSV-файл із папки <code>uploads</code>:</h4>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Файл</th>
+      <th>Дата</th>
+      <th>Розмір</th>
+      <th>Дія</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for file in files[:10] %}
+    <tr>
+      <td>{{ file.name }}</td>
+      <td>{{ file.mtime }}</td>
+      <td>{{ file.size }}</td>
+      <td>
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectFile('{{ file.name }}')">Вибрати</button>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<hr>
+<a href="{{ url_for('results') }}" class="btn btn-outline-secondary">📊 Перейти до результатів</a>
+
+<script>
+  function selectFile(filename) {
+    document.getElementById('selected_file').value = filename;
+    alert("Файл " + filename + " вибрано для аналізу");
+  }
+
+  document.getElementById('gmm-form').addEventListener('submit', function() {
+    document.getElementById('loading').style.display = 'block';
+  });
+</script>
+{% endblock %}

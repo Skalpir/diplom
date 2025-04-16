@@ -1,0 +1,35 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="container">
+  <h2 class="mb-4">Завантаження даних сенсорів</h2>
+  {% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="alert alert-info" role="alert">
+      {% for message in messages %} {{ message }} {% endfor %}
+    </div>
+  {% endif %}
+  {% endwith %}
+
+  <form action="/upload" method="post" enctype="multipart/form-data" class="p-4 border rounded bg-white mb-4">
+    <div class="mb-3">
+      <label for="file" class="form-label">Оберіть CSV-файл із даними сенсорів</label>
+      <input class="form-control" type="file" id="file" name="file" required accept=".csv" />
+    </div>
+    <button type="submit" class="btn btn-primary">Завантажити</button>
+  </form>
+
+  <h4 class="mb-3">Файли у системі:</h4>
+  {% if files %}
+    <ul class="list-group">
+      {% for file in files %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          {{ file }}
+          <a href="{{ url_for('download_file', filename=file) }}" class="btn btn-sm btn-outline-secondary">Завантажити</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted">Немає завантажених файлів.</p>
+  {% endif %}
+</div>
+{% endblock %}
