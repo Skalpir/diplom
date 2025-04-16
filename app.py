@@ -69,7 +69,7 @@ def result_detail(folder_name):
     texts = [f for f in files if f.lower().endswith(('.txt', '.log'))]
     csvs = [f for f in files if f.lower().endswith('.csv')]
 
-    # читаем первые 50 строк каждого текстового файла
+    # Читання перших 50 рядків для всіх текстових файлів у папці
     text_contents = {}
     for txt in texts:
         try:
