@@ -2,6 +2,9 @@ import os
 import csv
 from flask import Flask, request, redirect, url_for, render_template, flash, send_from_directory
 from werkzeug.utils import secure_filename
+from datetime import datetime
+from sklearn_gmm import SklearnGMMAnalyzer
+from my_gmm import MyGMMAnalyzer
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'  # Потрібний для flash повідомлень
@@ -10,6 +13,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'csv'}
 RESULTS_FOLDER = os.path.join(os.getcwd(), 'results')
+app.config.from_pyfile('config.py')
 
 # 🌐 Головна сторінка
 @app.route('/')
@@ -72,6 +76,7 @@ def result_detail(folder_name):
     # Читання перших 50 рядків для всіх текстових файлів у папці
     text_contents = {}
     for txt in texts:
+        
         try:
             with open(os.path.join(folder_path, txt), "r", encoding="utf-8", errors="ignore") as f:
                 lines = f.readlines()[:50]
@@ -79,6 +84,7 @@ def result_detail(folder_name):
         except Exception as e:
             text_contents[txt] = f"[Помилка при читанні файлу: {e}]"
 
+    #print(text_contents)  # Для отладки
     return render_template(
         'result_detail.html',
         folder=folder_name,
@@ -97,21 +103,32 @@ def download_result_file(folder_name, filename):
 # 🔮 GMM аналіз
 @app.route('/gmm', methods=['GET', 'POST'])
 def gmm():
-    if request.method == 'POST':
-        # Заглушка для GMM, просто показуємо, сторінку
-        # TODO треба буде реалізувати функції для відображенян списку завантежених файлів
-        flash('Аналіз GMM запущено! (поки що заглушка для кнопки)')
-        return redirect(url_for('results'))
-    return render_template('gmm.html')
+    upload_folder = app.config.get('UPLOAD_FOLDER', 'uploads')
+    upload_folder_path = os.path.join(app.root_path, upload_folder)
+    files = []
+
+    try:
+        for filename in os.listdir(upload_folder_path):
+            if filename.endswith('.csv'):
+                filepath = os.path.join(upload_folder_path, filename)
+                stat = os.stat(filepath)
+                files.append({
+                    'name': filename,
+                    'mtime': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M'),
+                    'size': f'{stat.st_size / 1024:.1f} KB'
+                })
+    except Exception as e:
+        flash(f"Не вдалося завантажити список файлів: {str(e)}")
+
+    return render_template('gmm.html', files=files)
 
 @app.route('/run_gmm', methods=['POST'])
-# TODO реалізувати функцію для запуску GMM з параметрами
 def run_gmm():
     # Отримуємо параметри з форми
     n_components = int(request.form.get('n_components', 3))
-    max_iter = int(request.form.get('max_iter', 100))
-    covariance_type = request.form.get('covariance_type', 'full')
-    gmm_impl = request.form.get('gmm_impl', 'my-gmm')
+    max_iter = int(request.form.get('max_iter', 100))  # Поки не використовується
+    covariance_type = request.form.get('covariance_type', 'full')  # Поки не використовується
+    gmm_impl = request.form.get('gmm_impl', 'sklearn-gmm')
 
     # Отримуємо файл
     uploaded_file = request.files.get('file')
@@ -119,7 +136,7 @@ def run_gmm():
     filename = None
     filepath = None
 
-    # Перевіряємо, чи файл завантажено або вибрано
+    # Завантажений файл або вибраний зі списку
     if uploaded_file and uploaded_file.filename != '':
         filename = secure_filename(uploaded_file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -131,30 +148,33 @@ def run_gmm():
         flash("Файл не обрано або не завантажено.")
         return redirect(url_for('gmm'))
 
-    # Читаем CSV
-    try:
-        data = pd.read_csv(filepath)
-    except Exception as e:
-        flash(f"Помилка читання CSV: {str(e)}")
-        return redirect(url_for('gmm'))
-
-    #TODO Місцева реалізація GMM , поки що я його не зробив так що би з параметрами, тому просто залишу це тут
+    # Запускаємо GMM-аналіз
+    print(gmm_impl)
     try:
         if gmm_impl == 'my-gmm':
-            result = my_gmm(data, n_components=n_components, max_iter=max_iter, covariance_type=covariance_type)
-        else:
-            result = sklearn_gmm(data, n_components=n_components, max_iter=max_iter, covariance_type=covariance_type)
-        
-        # Допустимо, що результат зберігається в файл, поки що не знаю як буде на справді.
-        output_path = os.path.join('results', f"result_{filename}")
-        result.to_csv(output_path, index=False)
+            analyzer = MyGMMAnalyzer(
+                csv_path=filepath,
+                n_components=n_components,
+            )
+            print("my_gmm.py")
+            analyzer.run()  # Запускаємо аналіз
+            result_dir = analyzer.output_dir  # Папка з результатами
+
+        elif gmm_impl == 'sklearn-gmm':
+            analyzer = SklearnGMMAnalyzer(
+                csv_path=filepath,
+                n_components=n_components
+            )
+            print("sklearn_gmm.py")
+            analyzer.run()  # Запускаємо аналіз
+            result_dir = analyzer.output_dir  # Папка з результатами
 
     except Exception as e:
         flash(f"Помилка під час виконання GMM: {str(e)}")
         return redirect(url_for('gmm'))
 
     flash(f"GMM аналіз завершено для файлу: {filename}")
-    return redirect(url_for('results'))
+    return redirect(url_for('results', folder=result_dir))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)

@@ -33,7 +33,7 @@
     {% if texts %}
         <h4 class="mt-4">📄 Текстові файли (.txt, .log):</h4>
         <div class="accordion" id="textAccordion">
-            {% for txt in texts %}
+            {% for txt in text %}
                 <div class="accordion-item">
                     <h2 class="accordion-header" id="heading{{ loop.index }}">
                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
