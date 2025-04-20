@@ -79,7 +79,7 @@ def result_detail(folder_name):
         
         try:
             with open(os.path.join(folder_path, txt), "r", encoding="utf-8", errors="ignore") as f:
-                lines = f.readlines()[:50]
+                lines = f.readlines() #[:50] # Обмежити до 50 рядків? Чи показувати всі?
                 text_contents[txt] = ''.join(lines)
         except Exception as e:
             text_contents[txt] = f"[Помилка при читанні файлу: {e}]"
