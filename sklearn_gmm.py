@@ -109,7 +109,7 @@ class SklearnGMMAnalyzer:
     def save_results(self):
         base = os.path.basename(self.csv_path)
         name, _ = os.path.splitext(base)
-        clusters_csv = os.path.join(self.output_dir, f"{name}_with_clusters.csv")
+        clusters_csv = os.path.join(self.output_dir, "processed_data.csv") #f"{name}_with_clusters.csv"
         generated_csv = os.path.join(self.output_dir, f"{name}_generated_samples.csv")
         self.data.to_csv(clusters_csv, index=False)
         self.new_samples_df.to_csv(generated_csv, index=False)

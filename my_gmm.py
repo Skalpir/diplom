@@ -173,8 +173,8 @@ class MyGMMAnalyzer:
 
     def save_results(self):
         base = os.path.basename(self.csv_path)
-        name, _ = os.path.splitext(base)
-        clusters_csv = os.path.join(self.output_dir, f"{name}_with_clusters.csv")
+        name, _ = os.path.splitext(base) 
+        clusters_csv = os.path.join(self.output_dir, "processed_data.csv") #f"{name}_with_clusters.csv"
         self.data.to_csv(clusters_csv, index=False)
         self.log(f"📄 CSV з кластерами збережено як {clusters_csv}")
 

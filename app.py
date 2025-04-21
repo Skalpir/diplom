@@ -1,10 +1,11 @@
 import os
 import csv
-from flask import Flask, request, redirect, url_for, render_template, flash, send_from_directory
+from flask import Flask, request, redirect, url_for, render_template, flash, send_from_directory, jsonify
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from sklearn_gmm import SklearnGMMAnalyzer
 from my_gmm import MyGMMAnalyzer
+from AnomalyAnalyzer import GMMAnomalyAnalyzer
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'  # Потрібний для flash повідомлень
@@ -73,7 +74,7 @@ def result_detail(folder_name):
     texts = [f for f in files if f.lower().endswith(('.txt', '.log'))]
     csvs = [f for f in files if f.lower().endswith('.csv')]
 
-    # Читання перших 50 рядків для всіх текстових файлів у папці
+    # Читання 
     text_contents = {}
     for txt in texts:
         
@@ -84,15 +85,58 @@ def result_detail(folder_name):
         except Exception as e:
             text_contents[txt] = f"[Помилка при читанні файлу: {e}]"
 
+    csv_path = os.path.join(folder_path, "processed_data.csv")
+    analyzer = GMMAnomalyAnalyzer()
+    #TODO подумати чи потрібно дати можливість передавати threshold користувачу, якщо так то буде доречно винести це в окремий раут і зробити форму і кнопку.
+    result = analyzer.run(csv_path, output_dir=folder_path, threshold=0.05)
+
     #print(text_contents)  # Для отладки
     return render_template(
         'result_detail.html',
+        anomalies=result["anomalies"],
         folder=folder_name,
         images=images,
         texts=texts,
         csvs=csvs,
         text_contents=text_contents
     )
+
+# @app.route('/results/<folder_name>/anomalies')
+# def analyze_result_folder(folder_name):
+#     # 📁 Повний шлях до папки з результатами
+#     folder_path = os.path.join(RESULTS_FOLDER, folder_name)
+
+#     if not os.path.exists(folder_path):
+#         return jsonify({"success": False, "error": f"Папка '{folder_name}' не знайдена"}), 404
+
+#     # 📄 Шлях до CSV з обробленими даними
+#     csv_path = os.path.join(folder_path, "processed_data.csv")
+#     if not os.path.exists(csv_path):
+#         return jsonify({"success": False, "error": "Файл 'processed_data.csv' не знайдено"}), 404
+
+#     try:
+#         # 💡 Зчитуємо threshold з параметра запиту або беремо дефолтне значення
+#         try:
+#             threshold = float(request.args.get("threshold", 0.05))
+#         except ValueError:
+#             return jsonify({"success": False, "error": "Невірне значення threshold"}), 400
+
+#         # 🧠 Створюємо аналізатор і запускаємо обробку
+#         analyzer = GMMAnomalyAnalyzer()
+#         result = analyzer.run(csv_path, output_dir=folder_path, threshold=threshold)
+
+#         return jsonify({
+#             "success": True,
+#             "data": result
+#         })
+
+#     except Exception as e:
+#         return jsonify({
+#             "success": False,
+#             "error": f"Помилка під час обробки: {str(e)}"
+#         }), 500
+
+
 
 # 🧾 Скачування будь-якого файлу з папки результатів
 @app.route('/results/<folder_name>/<filename>')

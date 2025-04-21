@@ -1,3 +1,4 @@
+# file AnomalyAnalyzer.py
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
@@ -6,19 +7,32 @@ class GMMAnomalyAnalyzer:
     def __init__(self):
         # Нічого не ініціалізуємо тут — дані будуть приходити пізніше через .run()
         self.df = None
-        self.anomaly_column = "Is_Anomaly"
         self.prob_column = "Log_Probability"
         self.timestamp_column = "Timestamp"
 
-    def run(self, file_path, save_plots=True, output_dir="static/plots"):
+    def run(self, file_path, save_plots=True, output_dir="static/plots", threshold=0.05):
         """
-        Основний метод запуску аналізу. Приймає шлях до CSV-файлу та повертає результати аналізу.
+        Основний метод запуску аналізу. Приймає шлях до CSV-файлу, поріг аномалії (threshold) 
+        та повертає результати аналізу.
         """
         self.df = pd.read_csv(file_path)
 
+        # Обчислення порогу на основі квантилю
+        threshold_value = self.df[self.prob_column].quantile(threshold)
+
+        # Додавання колонки аномалій
+        self.df["Is_Anomaly"] = self.df[self.prob_column] < threshold_value #  не знаю наскільки доречно додавати ще одну колонку
+
         # Підрахунок аномалій
-        total_anomalies = self.df[self.anomaly_column].sum()
-        top_anomalies = self.df[self.df[self.anomaly_column]].nlargest(10, self.prob_column).to_dict(orient="records")
+        total_anomalies = int(self.df["Is_Anomaly"].sum())
+        anomalies = self.df[self.df["Is_Anomaly"]]
+
+        # Отримання топ-10 найсильніших аномалій (за найменшою лог-ймовірністю)
+        top_anomalies = (
+            self.df[self.df["Is_Anomaly"]]
+            .nsmallest(10, self.prob_column)
+            .to_dict(orient="records")
+        )
 
         # Генерація графіків
         plot_paths = []
@@ -35,9 +49,11 @@ class GMMAnomalyAnalyzer:
             plot_paths.append(path2)
 
         return {
-            "total_anomalies": int(total_anomalies),
+            "anomalies": anomalies.to_dict(orient="records"),
+            "total_anomalies": total_anomalies,
             "top_anomalies": top_anomalies,
-            "plot_paths": plot_paths
+            "plot_paths": plot_paths,
+            "threshold_value": float(threshold_value)
         }
 
     def _plot_log_probabilities(self, path):
