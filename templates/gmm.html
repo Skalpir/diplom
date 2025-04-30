@@ -1,55 +1,118 @@
 {% extends "layout.html" %}
 {% block title %}Аналіз GMM{% endblock %}
 {% block content %}
-<h2>🧪 Запуск GMM-аналізу</h2>
-<p>Ця сторінка дозволяє виконати кластеризацію та виявлення аномалій за допомогою Gaussian Mixture Model.</p>
 
-<form id="gmm-form" method="POST" action="/run_gmm" enctype="multipart/form-data">
-  <div class="mb-3">
-    <label for="n_components" class="form-label">Кількість кластерів</label>
-    <input type="number" class="form-control" id="n_components" name="n_components" value="3" min="1">
+<h2>🧪 Аналіз GMM</h2>
+<p>Оберіть дію: створити нову модель або використовувати наявну.</p>
+
+<!-- Вибір дії -->
+<div class="mb-3">
+  <label for="gmm-mode" class="form-label">Дія</label>
+  <select class="form-select" id="gmm-mode" onchange="toggleGMMMode()">
+    <option value="new">Створити нову модель</option>
+    <option value="existing">Використати існуючу модель</option>
+  </select>
+</div>
+
+<!-- 🔧 Створення нової моделі -->
+<div id="new-gmm-section">
+  <form id="gmm-form" method="POST" action="/run_gmm" enctype="multipart/form-data">
+    <div class="mb-3">
+      <label for="n_components" class="form-label">Кількість кластерів</label>
+      <input type="number" class="form-control" id="n_components" name="n_components" value="3" min="1">
+    </div>
+
+    <div class="mb-3">
+      <label for="max_iter" class="form-label">Максимальна кількість ітерацій</label>
+      <input type="number" class="form-control" id="max_iter" name="max_iter" value="100" min="1">
+    </div>
+
+    <div class="mb-3">
+      <label for="covariance_type" class="form-label">Тип коваріації</label>
+      <select class="form-select" id="covariance_type" name="covariance_type">
+        <option value="full" selected>full</option>
+        <option value="tied">tied</option>
+        <option value="diag">diag</option>
+        <option value="spherical">spherical</option>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label for="gmm_impl" class="form-label">Вибір реалізації GMM</label>
+      <select class="form-select" id="gmm_impl" name="gmm_impl">
+        <option value="my-gmm">my-gmm</option>
+        <option value="sklearn-gmm">sklearn-gmm</option>
+      </select>
+    </div>
+
+    <!-- 🔄 Валід/трейн/тест розподіл -->
+    <div class="mb-3">
+      <label class="form-label">Розподіл даних</label>
+      <div class="input-group">
+        <span class="input-group-text">Тренувальні %</span>
+        <input type="number" class="form-control" name="train_pct" value="70" min="0" max="100">
+        <span class="input-group-text">Валідація %</span>
+        <input type="number" class="form-control" name="val_pct" value="15" min="0" max="100">
+        <span class="input-group-text">Тест %</span>
+        <input type="number" class="form-control" name="test_pct" value="15" min="0" max="100">
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="file" class="form-label">Завантажити CSV-файл (необов’язково)</label>
+      <input class="form-control" type="file" id="file" name="file" accept=".csv">
+    </div>
+
+    <input type="hidden" name="selected_file" id="selected_file">
+    <button type="submit" class="btn btn-success">🔁 Запустити GMM</button>
+  </form>
+
+  <div id="loading" style="display: none;" class="mt-3 alert alert-info">
+    🔄 Аналіз виконується... Зачекайте, будь ласка.
   </div>
+</div>
 
-  <div class="mb-3">
-    <label for="max_iter" class="form-label">Максимальна кількість ітерацій</label>
-    <input type="number" class="form-control" id="max_iter" name="max_iter" value="100" min="1">
+<!-- 📁 Робота з наявними моделями -->
+<div id="existing-gmm-section" style="display: none;">
+  <h4>📦 Існуючі моделі</h4>
+
+  {% if models %}
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Назва моделі</th>
+        <th>Дата</th>
+        <th>Дії</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for model in models %}
+      <tr>
+        <td>{{ model.name }}</td>
+        <td>{{ model.mtime }}</td>
+        <td>
+          <!-- Кнопки для дій з моделлю , без підключення до фласку-->
+          <button class="btn btn-primary btn-sm" disabled>📈 Зробити прогноз</button>
+          <button class="btn btn-warning btn-sm" disabled>🔁 Донавчання</button>
+          <button class="btn btn-secondary btn-sm" disabled>⬆ Завантажити модель</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="alert alert-info">Немає збережених моделей у <code>/results</code>.</div>
+  {% endif %}
+
+  <div class="mb-3 mt-4">
+    <label class="form-label">📥 Завантажити свою модель (.json)</label>
+    <input type="file" class="form-control" accept=".json">
   </div>
-
-  <div class="mb-3">
-    <label for="covariance_type" class="form-label">Тип коваріації</label>
-    <select class="form-select" id="covariance_type" name="covariance_type">
-      <option value="full" selected>full</option>
-      <option value="tied">tied</option>
-      <option value="diag">diag</option>
-      <option value="spherical">spherical</option>
-    </select>
-  </div>
-
-  <div class="mb-3">
-    <label for="gmm_impl" class="form-label">Вибір реалізації GMM</label>
-    <select class="form-select" id="gmm_impl" name="gmm_impl">
-      <option value="my-gmm">my-gmm</option>
-      <option value="sklearn-gmm">sklearn-gmm</option>
-    </select>
-  </div>
-
-  <div class="mb-3">
-    <label for="file" class="form-label">Завантажити CSV-файл (необов’язково)</label>
-    <input class="form-control" type="file" id="file" name="file" accept=".csv">
-  </div>
-
-  <input type="hidden" name="selected_file" id="selected_file">
-
-  <button type="submit" class="btn btn-success">🔁 Запустити GMM</button>
-</form>
-
-<div id="loading" style="display: none;" class="mt-3 alert alert-info">
-  🔄 Аналіз виконується... Зачекайте, будь ласка.
 </div>
 
 <hr>
 
-<h4>📂 Або оберіть наявний CSV-файл із папки <code>uploads</code>:</h4>
+<h4>📂 Оберіть CSV-файл із <code>uploads</code>:</h4>
 <table class="table table-striped">
   <thead>
     <tr>
@@ -73,17 +136,24 @@
   </tbody>
 </table>
 
-<hr>
 <a href="{{ url_for('results') }}" class="btn btn-outline-secondary">📊 Перейти до результатів</a>
 
+<!-- JS логіка -->
 <script>
+  function toggleGMMMode() {
+    const mode = document.getElementById("gmm-mode").value;
+    document.getElementById("new-gmm-section").style.display = (mode === "new") ? "block" : "none";
+    document.getElementById("existing-gmm-section").style.display = (mode === "existing") ? "block" : "none";
+  }
+
   function selectFile(filename) {
     document.getElementById('selected_file').value = filename;
     alert("Файл " + filename + " вибрано для аналізу");
   }
 
-  document.getElementById('gmm-form').addEventListener('submit', function() {
+  document.getElementById('gmm-form').addEventListener('submit', function () {
     document.getElementById('loading').style.display = 'block';
   });
 </script>
+
 {% endblock %}

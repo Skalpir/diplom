@@ -149,7 +149,10 @@ def download_result_file(folder_name, filename):
 def gmm():
     upload_folder = app.config.get('UPLOAD_FOLDER', 'uploads')
     upload_folder_path = os.path.join(app.root_path, upload_folder)
+    results_folder = os.path.join(app.root_path, 'results')
+    
     files = []
+    models = []
 
     try:
         for filename in os.listdir(upload_folder_path):
@@ -164,7 +167,37 @@ def gmm():
     except Exception as e:
         flash(f"Не вдалося завантажити список файлів: {str(e)}")
 
-    return render_template('gmm.html', files=files)
+    # results 
+    try:
+        if os.path.exists(results_folder):
+            # print(results_folder)
+            for model_name in os.listdir(results_folder):
+                # print(model_name)
+                model_dir = os.path.join(results_folder, model_name)
+                # print(model_dir)
+                if os.path.isdir(model_dir):
+                    model_file = os.path.join(model_dir, 'gmm_params.json')
+                    # print(model_file)
+                    if os.path.exists(model_file):
+                        print(model_file)
+                        stat = os.stat(model_file)
+                        models.append({
+                            'name': model_name,
+                            'path': model_file,
+                            'mtime': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M')
+                        })
+    except Exception as e:
+        flash(f"Не вдалося завантажити список моделей: {str(e)}")
+
+    # print("models", models)
+    return render_template('gmm.html', files=files, models=models)
+
+# Завантаження моделі
+@app.route('/gmm_model', methods=['POST'])
+def gmm_model():
+    print("meow")
+    # TODO Завантаження моделі з gmm.html , звідти нам буде приходити шлях до моделі, а ми будем завантажувати її користучу на ПК. 
+
 
 @app.route('/run_gmm', methods=['POST'])
 def run_gmm():

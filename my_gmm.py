@@ -9,6 +9,15 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
 
+# новий файл = n  в сек 
+# сохраняю модель
+# роблю предікт
+
+#екран з моделями (скачування моделей)
+#запуск моделей з різними моделями(готовими і ні)
+#beta-flyer
+#rocket launh data imu
+
 class GMM:
     # Ініціалізація параметрів моделі
     def __init__(self, n_components, max_iters=100, tol=1e-6, random_state=42, logger=None, reg_cov=1e-6):
