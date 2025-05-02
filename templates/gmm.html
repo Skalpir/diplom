@@ -94,7 +94,10 @@
           <!-- Кнопки для дій з моделлю , без підключення до фласку-->
           <button class="btn btn-primary btn-sm" disabled>📈 Зробити прогноз</button>
           <button class="btn btn-warning btn-sm" disabled>🔁 Донавчання</button>
-          <button class="btn btn-secondary btn-sm" disabled>⬆ Завантажити модель</button>
+          <form method="POST" action="/download_gmm_model" style="display: inline;">
+            <input type="hidden" name="model_path" value="{{ model.path }}">
+            <button type="submit" class="btn btn-secondary btn-sm">⬆ Завантажити модель</button>
+          </form>
         </td>
       </tr>
       {% endfor %}

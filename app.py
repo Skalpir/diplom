@@ -1,6 +1,6 @@
 import os
 import csv
-from flask import Flask, request, redirect, url_for, render_template, flash, send_from_directory, jsonify
+from flask import Flask, request, redirect, url_for, render_template, flash, send_from_directory, jsonify, send_file
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from sklearn_gmm import SklearnGMMAnalyzer
@@ -193,10 +193,19 @@ def gmm():
     return render_template('gmm.html', files=files, models=models)
 
 # Завантаження моделі
-@app.route('/gmm_model', methods=['POST'])
-def gmm_model():
-    print("meow")
-    # TODO Завантаження моделі з gmm.html , звідти нам буде приходити шлях до моделі, а ми будем завантажувати її користучу на ПК. 
+@app.route('/download_gmm_model', methods=['POST'])
+def download_gmm_model():
+    model_path = request.form.get('model_path')
+
+    if not model_path or not os.path.exists(model_path):
+        flash("Файл не знайдено або шлях недійсний.")
+        return redirect(url_for('gmm'))
+
+    try:
+        return send_file(model_path, as_attachment=True)
+    except Exception as e:
+        flash(f"Не вдалося завантажити файл: {str(e)}")
+        return redirect(url_for('gmm'))
 
 
 @app.route('/run_gmm', methods=['POST'])
