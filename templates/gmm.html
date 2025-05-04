@@ -17,18 +17,89 @@
 <!-- 🔧 Створення нової моделі -->
 <div id="new-gmm-section">
   <form id="gmm-form" method="POST" action="/run_gmm" enctype="multipart/form-data">
+
+    <!-- 🎯 Робота з шаблонами -->
     <div class="mb-3">
-      <label for="n_components" class="form-label">Кількість кластерів</label>
+      <label for="template-select" class="form-label">🔖 Обрати шаблон</label>
+      <select class="form-select" id="template-select">
+        <option value="">-- Стандартний шаблон --</option>
+        {% for template in templates %}
+          <option value="{{ template }}">{{ template }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label for="template_name" class="form-label">Назва нового шаблону</label>
+      <input type="text" class="form-control" id="template_name" name="template_name" placeholder="Наприклад: my_config">
+    </div>
+
+    <button type="button" class="btn btn-outline-primary mb-3" onclick="saveTemplate()">💾 Зберегти шаблон</button>
+
+    <!-- 🧮 Кількість кластерів -->
+    <div class="mb-3">
+      <label for="n_components" class="form-label">
+        Кількість кластерів
+        <span tabindex="0" class="text-info" data-bs-toggle="popover" data-bs-trigger="hover focus"
+              data-bs-content="Кількість кластерів у моделі. Наприклад: 3–10 для звичайних задач кластеризації.">ℹ️</span>
+      </label>
       <input type="number" class="form-control" id="n_components" name="n_components" value="3" min="1">
     </div>
 
     <div class="mb-3">
-      <label for="max_iter" class="form-label">Максимальна кількість ітерацій</label>
+      <label for="max_iter" class="form-label">
+        Максимальна кількість ітерацій
+        <span tabindex="0" class="text-info" data-bs-toggle="popover" data-bs-trigger="hover focus"
+              data-bs-content="Максимальна кількість ітерацій, яку дозволено алгоритму. Зазвичай: 100–300.">ℹ️</span>
+      </label>
       <input type="number" class="form-control" id="max_iter" name="max_iter" value="100" min="1">
     </div>
 
     <div class="mb-3">
-      <label for="covariance_type" class="form-label">Тип коваріації</label>
+      <label for="tol" class="form-label">
+        Допуск зупинки tol
+        <span tabindex="0" class="text-info" data-bs-toggle="popover" data-bs-trigger="hover focus"
+              data-bs-content="Поріг зупинки ітерацій, якщо зміни стали менші за це значення. Зазвичай: 1e-3.">ℹ️</span>
+      </label>
+      <input type="number" step="any" class="form-control" id="tol" name="tol" value="1e-3">
+    </div>
+
+    <div class="mb-3">
+      <label for="reg_cov" class="form-label">
+        Регуляризація ковариації
+        <span tabindex="0" class="text-info" data-bs-toggle="popover" data-bs-trigger="hover focus"
+              data-bs-content="Захист від виродження матриці коваріацій. Чим менше — тим точніше. Стандарт: 1e-6.">ℹ️</span>
+      </label>
+      <input type="number" step="any" class="form-control" id="reg_cov" name="reg_cov" value="1e-6">
+    </div>
+
+    <div class="mb-3">
+      <label for="random_state" class="form-label">
+        Random State (опціонально)
+        <span tabindex="0" class="text-info" data-bs-toggle="popover" data-bs-trigger="hover focus"
+              data-bs-content="Фіксоване число для відтворюваності результатів. Наприклад: 42 або залишити пустим.">ℹ️</span>
+      </label>
+      <input type="number" class="form-control" id="random_state" name="random_state" placeholder="Напр., 42">
+    </div>
+
+    <div class="mb-3">
+      <label for="init_params" class="form-label">
+        Метод ініціалізації
+        <span tabindex="0" class="text-info" data-bs-toggle="popover" data-bs-trigger="hover focus"
+              data-bs-content="kmeans — стабільніше і краще результат; random — швидше, але результат буде набагато гірше.">ℹ️</span>
+      </label>
+      <select class="form-select" id="init_params" name="init_params">
+        <option value="kmeans" selected>kmeans</option>
+        <option value="random">random</option>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label for="covariance_type" class="form-label">
+        Тип коваріації
+        <span tabindex="0" class="text-info" data-bs-toggle="popover" data-bs-trigger="hover focus"
+              data-bs-content="Тип ковариаційної матриці: full — повна, diag — діагональна, tied — загальна для всіх кластерів.">ℹ️</span>
+      </label>
       <select class="form-select" id="covariance_type" name="covariance_type">
         <option value="full" selected>full</option>
         <option value="tied">tied</option>
@@ -45,18 +116,52 @@
       </select>
     </div>
 
-    <!-- 🔄 Валід/трейн/тест розподіл -->
+    <!-- 🧠 Ініціалізація для донавчання -->
     <div class="mb-3">
-      <label class="form-label">Розподіл даних</label>
-      <div class="input-group">
-        <span class="input-group-text">Тренувальні %</span>
-        <input type="number" class="form-control" name="train_pct" value="70" min="0" max="100">
-        <span class="input-group-text">Валідація %</span>
-        <input type="number" class="form-control" name="val_pct" value="15" min="0" max="100">
-        <span class="input-group-text">Тест %</span>
-        <input type="number" class="form-control" name="test_pct" value="15" min="0" max="100">
-      </div>
+      <label for="means_init" class="form-label">
+        Means Init (JSON-масив, опціонально)
+        <span tabindex="0" class="text-info" data-bs-toggle="popover" data-bs-trigger="hover focus"
+              data-bs-content="Задати початкові середні значення вручну. Наприклад: [[0.1, 0.2], [0.3, 0.4]]">ℹ️</span>
+      </label>
+      <textarea class="form-control" id="means_init" name="means_init" rows="2"
+                placeholder="[[0.1, 0.2], [0.3, 0.4]]"></textarea>
     </div>
+
+    <div class="mb-3">
+      <label for="precisions_init" class="form-label">
+        Precisions Init (JSON-масив, опціонально)
+        <span tabindex="0" class="text-info" data-bs-toggle="popover" data-bs-trigger="hover focus"
+              data-bs-content="Ковариаційні матриці вручну. Наприклад: [[[1, 0], [0, 1]], [[1, 0], [0, 1]]]">ℹ️</span>
+      </label>
+      <textarea class="form-control" id="precisions_init" name="precisions_init" rows="2"
+                placeholder="[[[1, 0], [0, 1]], [[1, 0], [0, 1]]]"></textarea>
+    </div>
+
+    <div class="mb-3">
+      <label for="weights_init" class="form-label">
+        Weights Init (JSON-масив, опціонально)
+        <span tabindex="0" class="text-info" data-bs-toggle="popover" data-bs-trigger="hover focus"
+              data-bs-content="Ваги початкових кластерів. Наприклад: [0.5, 0.5] — два кластери з рівною вагою.">ℹ️</span>
+      </label>
+      <textarea class="form-control" id="weights_init" name="weights_init" rows="1"
+                placeholder="[0.5, 0.5]"></textarea>
+    </div>
+
+        <!-- 🔄 Валід/трейн/тест розподіл -->
+        <div class="mb-3">
+          <label class="form-label">Розподіл даних</label>
+          <div class="input-group">
+            <span class="input-group-text">Тренувальні %</span>
+            <input type="number" class="form-control" name="train_pct" value="70" min="0" max="100">
+            <span class="input-group-text">Валідація %</span>
+            <input type="number" class="form-control" name="val_pct" value="15" min="0" max="100">
+            <span class="input-group-text">Тест %</span>
+            <input type="number" class="form-control" name="test_pct" value="15" min="0" max="100">
+          </div>
+        </div>
+
+  </form>
+</div>
 
     <div class="mb-3">
       <label for="file" class="form-label">Завантажити CSV-файл (необов’язково)</label>
@@ -72,8 +177,10 @@
   </div>
 </div>
 
+
+
 <!-- 📁 Робота з наявними моделями -->
-<div id="existing-gmm-section" style="display: none;">
+<div id="existing-gmm-section" class="container my-4" style="display: none;">
   <h4>📦 Існуючі моделі</h4>
 
   {% if models %}
@@ -113,36 +220,53 @@
   </div>
 </div>
 
-<hr>
 
-<h4>📂 Оберіть CSV-файл із <code>uploads</code>:</h4>
-<table class="table table-striped">
-  <thead>
-    <tr>
-      <th>Файл</th>
-      <th>Дата</th>
-      <th>Розмір</th>
-      <th>Дія</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for file in files[:10] %}
-    <tr>
-      <td>{{ file.name }}</td>
-      <td>{{ file.mtime }}</td>
-      <td>{{ file.size }}</td>
-      <td>
-        <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectFile('{{ file.name }}')">Вибрати</button>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="container my-4">
+  <h4>📂 Оберіть CSV-файл із <code>uploads</code>:</h4>
 
-<a href="{{ url_for('results') }}" class="btn btn-outline-secondary">📊 Перейти до результатів</a>
+  <div class="table-responsive">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Файл</th>
+          <th>Дата</th>
+          <th>Розмір</th>
+          <th>Дія</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for file in files[:10] %}
+        <tr>
+          <td>{{ file.name }}</td>
+          <td>{{ file.mtime }}</td>
+          <td>{{ file.size }}</td>
+          <td>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectFile('{{ file.name }}')">Вибрати</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="d-flex justify-content-end mb-3">
+    <a href="{{ url_for('results') }}" class="btn btn-outline-secondary">📊 Перейти до результатів</a>
+  </div>
+</div>
 
 <!-- JS логіка -->
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"></script>
+
 <script>
+    document.addEventListener("DOMContentLoaded", function () {
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.forEach(function (el) {
+      new bootstrap.Popover(el);
+    });
+  });
+
   function toggleGMMMode() {
     const mode = document.getElementById("gmm-mode").value;
     document.getElementById("new-gmm-section").style.display = (mode === "new") ? "block" : "none";
