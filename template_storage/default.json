@@ -1,0 +1,10 @@
+{
+  "n_components": "3",
+  "max_iter": "100",
+  "tol": "1e-3",
+  "reg_cov": "1e-6",
+  "random_state": "42",
+  "init_params": "kmeans",
+  "covariance_type": "full",
+  "gmm_impl": "my-gmm"
+}

@@ -18,19 +18,15 @@
 <div id="new-gmm-section">
   <form id="gmm-form" method="POST" action="/run_gmm" enctype="multipart/form-data">
 
-    <!-- 🎯 Робота з шаблонами -->
-    <div class="mb-3">
-      <label for="template-select" class="form-label">🔖 Обрати шаблон</label>
-      <select class="form-select" id="template-select">
-        <option value="">-- Стандартний шаблон --</option>
-        {% for template in templates %}
-          <option value="{{ template }}">{{ template }}</option>
-        {% endfor %}
-      </select>
-    </div>
+<!-- 🎯 Робота з шаблонами -->
+<div class="mb-3">
+  <label for="template-select" class="form-label">🔖 Обрати шаблон</label>
+  <select class="form-select" id="template-select">
+  </select>
+</div>
 
     <div class="mb-3">
-      <label for="template_name" class="form-label">Назва нового шаблону</label>
+      <label for="template_name" class="form-label">Назва шаблону</label>
       <input type="text" class="form-control" id="template_name" name="template_name" placeholder="Наприклад: my_config">
     </div>
 
@@ -260,6 +256,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"></script>
 
 <script>
+  // Ініціалізація Bootstrap Popover
     document.addEventListener("DOMContentLoaded", function () {
     const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
     popoverTriggerList.forEach(function (el) {
@@ -267,12 +264,14 @@
     });
   });
 
+  // Вибір дії: нова модель або існуюча
   function toggleGMMMode() {
     const mode = document.getElementById("gmm-mode").value;
     document.getElementById("new-gmm-section").style.display = (mode === "new") ? "block" : "none";
     document.getElementById("existing-gmm-section").style.display = (mode === "existing") ? "block" : "none";
   }
 
+  // Вибір файлу для GMM
   function selectFile(filename) {
     document.getElementById('selected_file').value = filename;
     alert("Файл " + filename + " вибрано для аналізу");
@@ -281,6 +280,161 @@
   document.getElementById('gmm-form').addEventListener('submit', function () {
     document.getElementById('loading').style.display = 'block';
   });
+
+
+// Динамічне завантаження шаблонів у <select>
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const response = await fetch('/templates');
+        if (!response.ok) throw new Error('Не вдалося отримати список шаблонів');
+
+        const templates = await response.json();
+        const select = document.getElementById('template-select');
+
+        // Додати опції до селектора
+        templates.forEach(template => {
+            const option = document.createElement('option');
+            option.value = template;
+            option.textContent = template;
+            select.appendChild(option);
+        });
+
+    } catch (err) {
+        alert('Помилка при завантаженні списку шаблонів: ' + err.message);
+    }
+});
+
+// Завантаження вибраного шаблону
+document.getElementById('template-select').addEventListener('change', async () => {
+    const select = document.getElementById('template-select');
+    const selectedTemplate = select.value;
+
+    if (!selectedTemplate) {
+        console.log('Стандартний шаблон');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/template_storage/${selectedTemplate}`);
+        if (!response.ok) throw new Error('Не вдалося завантажити шаблон');
+
+        const data = await response.json();
+
+        // Автоматичне заповнення полів
+        for (const [key, value] of Object.entries(data)) {
+            const input = document.getElementById(key);
+            if (input) input.value = value;
+        }
+
+    } catch (err) {
+        alert('Помилка при завантаженні шаблону: ' + err.message);
+    }
+});
+
+// Функція для збереження шаблону
+async function saveTemplate() {
+    const templateName = document.getElementById('template_name').value.trim();
+    if (!templateName) {
+        alert('Введи назву шаблону');
+        return;
+    }
+
+    const data = {
+      n_components: document.getElementById('n_components')?.value || '',
+      max_iter: document.getElementById('max_iter')?.value || '',
+      tol: document.getElementById('tol')?.value || '',
+      reg_cov: document.getElementById('reg_cov')?.value || '',
+      random_state: document.getElementById('random_state')?.value || '',
+      init_params: document.getElementById('init_params')?.value || '',
+      covariance_type: document.getElementById('covariance_type')?.value || '',
+      gmm_impl: document.getElementById('gmm_impl')?.value || '',
+    };
+
+    try {
+        const response = await fetch('/save_template', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: templateName + '.json',
+                data: data
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText);
+        }
+
+        alert('Шаблон збережено!');
+        location.reload();
+
+    } catch (err) {
+        alert('Помилка при збереженні шаблону: ' + err.message);
+    }
+}
+
+// Завантаження шаблонів при завантаженні сторінки, там що би автоматично підвантажився шаблон і вибрався default.json
+async function loadTemplatesList() {
+    try {
+        const response = await fetch('/templates');
+        const templates = await response.json();
+
+        const select = document.getElementById('template-select');
+        select.innerHTML = '';
+
+        // Заглушка
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Вибрати шаблон';
+        select.appendChild(placeholder);
+
+        templates.forEach(t => {
+            const option = document.createElement('option');
+            option.value = t;
+            option.textContent = t;
+            select.appendChild(option);
+        });
+
+        const defaultIndex = templates.findIndex(t => t === 'default.json');
+        if (defaultIndex !== -1) {
+            select.value = 'default.json';
+            select.dispatchEvent(new Event('change'));
+        }
+
+    } catch (err) {
+        alert('Не вдалося завантажити список шаблонів: ' + err.message);
+    }
+}
+
+// Реакція на клік по шаблону і змінення значень у формі
+document.addEventListener('DOMContentLoaded', () => {
+    loadTemplatesList();
+
+    document.getElementById('template-select').addEventListener('change', async () => {
+        const select = document.getElementById('template-select');
+        const selectedTemplate = select.value;
+
+        if (!selectedTemplate) {
+            console.log('Стандартний шаблон');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/template_storage/${selectedTemplate}`);
+            if (!response.ok) throw new Error('Не вдалося завантажити шаблон');
+
+            const data = await response.json();
+            for (const [key, value] of Object.entries(data)) {
+                const input = document.getElementById(key);
+                if (input) input.value = value;
+            }
+
+        } catch (err) {
+            alert('Помилка при завантаженні шаблону: ' + err.message);
+        }
+    });
+});
 </script>
+
 
 {% endblock %}

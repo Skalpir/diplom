@@ -1,6 +1,7 @@
 import os
 import csv
-from flask import Flask, request, redirect, url_for, render_template, flash, send_from_directory, jsonify, send_file
+import json
+from flask import Flask, request, redirect, url_for, render_template, flash, send_from_directory, jsonify, send_file, abort
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from sklearn_gmm import SklearnGMMAnalyzer
@@ -15,6 +16,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'csv'}
 RESULTS_FOLDER = os.path.join(os.getcwd(), 'results')
 app.config.from_pyfile('config.py')
+TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'template_storage')
+
 
 # 🌐 Головна сторінка
 @app.route('/')
@@ -261,6 +264,55 @@ def run_gmm():
 
     flash(f"GMM аналіз завершено для файлу: {filename}")
     return redirect(url_for('results', folder=result_dir))
+
+#Раут для отимання всіх шаблонів із папки templates
+@app.route('/templates')
+def get_templates():
+    files = [f for f in os.listdir(TEMPLATE_DIR) if f.endswith('.json')]
+    return jsonify(files)
+
+@app.route('/template_storage/<template_name>')
+def load_template(template_name):
+    # Защита от чтения вне директории
+    if not template_name.endswith('.json'):
+        abort(400, 'Невірний формат шаблону')
+
+    template_path = os.path.join(TEMPLATE_DIR, template_name)
+
+    if not os.path.exists(template_path):
+        abort(404, 'Шаблон не знайдено')
+
+    try:
+        with open(template_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        abort(500, f'Помилка при читанні шаблону: {str(e)}')
+
+#Раут для збереження нового шаблону в json форматі в папку templates
+@app.route('/save_template', methods=['POST'])
+def save_template():
+    content = request.get_json()
+
+    if not content:
+        return jsonify({'error': 'Дані не передано'}), 400
+
+    template_name = content.get('name')
+    template_data = content.get('data')
+
+    if not template_name or not template_data:
+        return jsonify({'error': "Ім'я шаблону або дані відсутні"}), 400
+
+    # Переконайся, що шаблон має розширення .json
+    if not template_name.endswith('.json'):
+        template_name += '.json'
+
+    path = os.path.join(TEMPLATE_DIR, template_name)
+
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(template_data, f, ensure_ascii=False, indent=2)
+
+    return jsonify({'message': f"Шаблон '{template_name}' збережено!"}), 200
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)
